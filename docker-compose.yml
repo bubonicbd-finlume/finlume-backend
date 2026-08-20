@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  # Python FastAPI backend
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      JWT_SECRET: "dev-secret-change-in-production"
+      DATABASE_URL: "sqlite:///tmp/ledgerly.db"
+    volumes:
+      - ./app.py:/app/app.py
+      - ./bank_parsers.py:/app/bank_parsers.py
+      - ./categorizer.py:/app/categorizer.py
+      - ./narration_processor.py:/app/narration_processor.py
+      - ./active_learning.py:/app/active_learning.py
+      - ./pipeline.py:/app/pipeline.py
+      - ./validation_layer.py:/app/validation_layer.py
+    command: >
+      bash -c "pip install -r requirements.txt &&
+               uvicorn app:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Postgres for production-like testing
+  # (SQLite by default; uncomment to use Postgres instead)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_DB: ledgerly
+  #     POSTGRES_USER: ledgerly
+  #     POSTGRES_PASSWORD: ledgerly-dev
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ledgerly"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+# volumes:
+#   postgres_data:
+
+# Usage:
+#
+# 1. Build and start:
+#    docker-compose up --build
+#
+# 2. Generate a test JWT:
+#    docker-compose exec backend python3 -c "
+#    import jwt
+#    from datetime import datetime, timedelta
+#    token = jwt.encode({'sub': 'test@example.com', 'exp': datetime.utcnow() + timedelta(days=1)}, 'dev-secret-change-in-production', algorithm='HS256')
+#    print(token)
+#    "
+#
+# 3. Test an endpoint:
+#    curl -X POST http://localhost:8000/categorize/one \
+#      -H "Authorization: Bearer YOUR_JWT" \
+#      -H "Content-Type: application/x-www-form-urlencoded" \
+#      -d "narration=SWIGGY&is_credit=false"
+#
+# 4. API docs (live Swagger UI):
+#    http://localhost:8000/docs
+#
+# 5. Stop:
+#    docker-compose down
